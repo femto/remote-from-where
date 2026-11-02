@@ -183,16 +183,17 @@ async function load() {
   const fn = document.getElementById("fn").value;
   const list = document.getElementById("list");
   list.innerHTML = '<div class="loading">Loading live roles from the speedrun jobs API…</div>';
-  const jobs = [];
-  for (let page = 1; page <= 30; page++) {
+  const fetchPage = async page => {
     const q = new URLSearchParams({ wp: "remote", page, source: SRC });
     if (fn) q.set("fn", fn);
     const r = await fetch(`${API}/jobs?${q}`);
-    if (!r.ok) break;
-    const d = await r.json();
-    jobs.push(...d.jobs);
-    if (page >= d.total_pages) break;
-  }
+    return r.ok ? r.json() : { jobs: [], total_pages: 0 };
+  };
+  const first = await fetchPage(1);
+  const rest = await Promise.all(
+    Array.from({ length: Math.min(first.total_pages, 30) - 1 }, (_, i) => fetchPage(i + 2))
+  );
+  const jobs = [first, ...rest].flatMap(d => d.jobs);
   JOBS = jobs.map(j => ({ ...j, regions: classify(j.location), evidence: null }));
   render();
 }
