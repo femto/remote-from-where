@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Remote, but from where? · a pitch for the speedrun talent network</title>
+<style>
+  :root {
+    --ink: #111; --muted: #6b6b6b; --line: #e7e5e0; --bg: #faf9f6; --card: #fff;
+    --ok: #0f7b4b; --ok-bg: #e7f6ee; --warn: #9a6200; --warn-bg: #fdf3dc; --no: #a23b2c; --no-bg: #fbeae7;
+    --chip: #f1efe9;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif; color: var(--ink); background: var(--bg); }
+  main { max-width: 1040px; margin: 0 auto; padding: 48px 24px 96px; }
+  .eyebrow { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  h1 { font-size: 40px; line-height: 1.1; margin: 8px 0 12px; letter-spacing: -.02em; }
+  .lede { font-size: 18px; color: #333; max-width: 720px; margin: 0 0 32px; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 28px; }
+  .stat { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+  .stat b { display: block; font-size: 28px; letter-spacing: -.02em; }
+  .stat span { color: var(--muted); font-size: 13px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; margin-bottom: 20px; position: sticky; top: 8px; z-index: 2; }
+  .controls label { font-size: 13px; color: var(--muted); }
+  select { font: inherit; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+  .tabs { display: flex; gap: 6px; margin-left: auto; }
+  .tab { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 13px; cursor: pointer; }
+  .tab[aria-pressed="true"] { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .row { display: grid; grid-template-columns: 1fr auto; gap: 8px 16px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; margin-bottom: 8px; }
+  .row a { color: var(--ink); text-decoration: none; font-weight: 600; }
+  .row a:hover { text-decoration: underline; }
+  .co { color: var(--muted); font-weight: 400; }
+  .raw { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: var(--muted); }
+  .chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+  .chip { font-size: 12px; background: var(--chip); border-radius: 999px; padding: 2px 8px; }
+  .verdict { align-self: start; font-size: 12px; font-weight: 600; border-radius: 999px; padding: 4px 10px; white-space: nowrap; }
+  .v-ok { color: var(--ok); background: var(--ok-bg); }
+  .v-unclear { color: var(--warn); background: var(--warn-bg); }
+  .v-no { color: var(--no); background: var(--no-bg); }
+  .check { font: inherit; font-size: 12px; border: 1px solid var(--line); background: #fff; border-radius: 8px; padding: 3px 8px; cursor: pointer; margin-top: 6px; }
+  .evidence { font-size: 12px; color: #444; margin-top: 6px; background: #f6f5f1; border-radius: 8px; padding: 6px 8px; }
+  .evidence mark { background: #ffe9a8; }
+  section.pitch { margin-top: 48px; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 24px 28px; }
+  section.pitch h2 { margin-top: 0; font-size: 22px; }
+  section.pitch li { margin-bottom: 6px; }
+  .spellings { columns: 3; font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: var(--muted); margin: 8px 0 0; padding-left: 18px; }
+  .loading { color: var(--muted); padding: 24px 0; }
+  footer { margin-top: 32px; color: var(--muted); font-size: 13px; }
+  @media (max-width: 720px) { .stats { grid-template-columns: repeat(2, 1fr); } .spellings { columns: 1; } h1 { font-size: 30px; } }
+</style>
+</head>
+<body>
+<main>
+  <div class="eyebrow">A pitch for the speedrun talent network · built on your public API</div>
+  <h1>Remote, but from where?</h1>
+  <p class="lede">
+    Half of a job seeker's time on "remote" roles goes to finding out they can't apply from where they live.
+    This page reads the live jobs board through <code>/api/v1/jobs</code>, turns every free-text location into
+    the places a role is actually open to, and lets you say once where you are.
+  </p>
+
+  <div class="stats" id="stats">
+    <div class="stat"><b id="s-total">…</b><span>remote roles on the board</span></div>
+    <div class="stat"><b id="s-spell">…</b><span>different ways to write the location</span></div>
+    <div class="stat"><b id="s-unclear">…</b><span>just say "Remote": open to whom?</span></div>
+    <div class="stat"><b id="s-open">…</b><span id="s-open-label">open to you</span></div>
+  </div>
+
+  <div class="controls">
+    <label for="where">I live in</label>
+    <select id="where">
+      <option value="US">United States</option>
+      <option value="CA">Canada</option>
+      <option value="UK">United Kingdom</option>
+      <option value="EU">EU / Europe</option>
+      <option value="LATAM">Latin America</option>
+      <option value="APAC" selected>Asia-Pacific (e.g. China, India, Australia)</option>
+      <option value="MEA">Middle East / Africa</option>
+    </select>
+    <label for="fn">Function</label>
+    <select id="fn">
+      <option value="engineering" selected>Engineering</option>
+      <option value="">All functions</option>
+      <option value="product">Product</option>
+      <option value="design">Design</option>
+    </select>
+    <div class="tabs" role="group" aria-label="Filter">
+      <button class="tab" data-filter="ok" aria-pressed="true">Open to me</button>
+      <button class="tab" data-filter="unclear" aria-pressed="false">Unclear</button>
+      <button class="tab" data-filter="no" aria-pressed="false">Not open to me</button>
+      <button class="tab" data-filter="all" aria-pressed="false">All</button>
+    </div>
+  </div>
+
+  <div id="list"><div class="loading">Loading live roles from the speedrun jobs API…</div></div>
+
+  <section class="pitch">
+    <h2>The pitch</h2>
+    <p><b>Problem.</b> "Remote" on a job post usually means "remote within a country", and the location field is free text.
+      On the live board right now there are <b id="p-spell">…</b> spellings for remote engineering locations
+      ("Remote, USA", "Remote (US)", "US Remote", "United States (Remote)"…), and <b id="p-unclear">…</b> roles
+      say only "Remote". Job seekers outside the US find out after reading the JD, or after applying.
+      I lived this over the last two weeks: GitLab's agent roles say Remote but hire in four countries, Hugging Face says
+      "EMEA Remote", and aggregators still list roles their ATS already closed.</p>
+    <p><b>What I'd build.</b></p>
+    <ol>
+      <li><b>Normalize location → eligibility</b> at ingest: countries, regions and time zones a role is open to,
+        with rules for the common spellings and an LLM pass over the JD for the "Remote"-only cases. This demo runs a
+        rule-based version of the JD pass when you click <i>Check the JD</i>. On the run I tested, rules alone settled
+        about two in five of the "Remote"-only roles from phrases like "fully remote within the United States" or
+        "open to candidates based in the US, UK and Canada". The rest is where an LLM earns its keep.</li>
+      <li><b>Ask once, filter everywhere.</b> One profile field ("I'm in X, I need / don't need a visa") that the jobs board,
+        <code>/api/v1/jobs</code> and the MCP server all respect, so an agent searching for a candidate only returns roles they can take.</li>
+      <li><b>Freshness.</b> Re-check each role against its ATS's public API (Ashby, Greenhouse, Lever) so closed roles drop off fast.</li>
+    </ol>
+    <p><b>Why it moves your goals.</b> Fewer dead-end applications builds the trust you say earns the right to point people at
+      speedrun roles. It makes the network worth joining for the large pool of international engineers. And it makes the
+      MCP server more useful to agents, which can't eyeball a JD the way a person does.</p>
+    <details><summary>All location spellings seen in this run</summary><ul class="spellings" id="spellings"></ul></details>
+  </section>
+
+  <footer>
+    Built by <a href="https://github.com/femto">Bingnan Zheng (femto)</a> in an afternoon on the public speedrun jobs API
+    (<code>?source=remote-from-where</code>). Rule-based classifier; data is live.
+  </footer>
+</main>
+
+<script>
+const API = "https://speedrun-talent-network.com/api/v1";
+const SRC = "remote-from-where";
+
+const US_STATES = "alabama|alaska|arizona|arkansas|california|colorado|connecticut|delaware|florida|georgia|hawaii|idaho|illinois|indiana|iowa|kansas|kentucky|louisiana|maine|maryland|massachusetts|michigan|minnesota|mississippi|missouri|montana|nebraska|nevada|new hampshire|new jersey|new mexico|new york|north carolina|north dakota|ohio|oklahoma|oregon|pennsylvania|rhode island|south carolina|south dakota|tennessee|texas|utah|vermont|virginia|washington|west virginia|wisconsin|wyoming|district of columbia";
+const RULES = [
+  ["GLOBAL", /\b(global|worldwide|anywhere|international)\b/i],
+  ["US", /\b(us|u\.s\.?|usa|united states|united,? states|america)\b/i],
+  ["US", new RegExp(`\\b(${US_STATES}|san francisco|sf|bay area|nyc|new york city|seattle|bellevue|boston|watertown|atlanta|austin|chicago|los angeles|irvine|costa mesa|mountain view|sunnyvale|palo alto|portland|denver|miami|state college|dc|mo|ny|ca)\\b`, "i")],
+  ["CA", /\b(canada|toronto|ontario|vancouver|montreal|cad)\b/i],
+  ["UK", /\b(uk|united kingdom|london|england|scotland)\b/i],
+  ["EU", /\b(eu|europe|european|ireland|poland|krak[oó]w|czechia|germany|berlin|paris|france|spain|madrid|netherlands|amsterdam|portugal|lisbon|athens|greece|italy|sweden|ukraine)\b/i],
+  ["LATAM", /\b(latam|latin america|south america|brazil|s[aã]o paulo|colombia|bogot[aá]|mexico|argentina|chile|peru)\b/i],
+  ["APAC", /\b(apac|asia|india|bangalore|bengaluru|australia|sydney|singapore|japan|tokyo|china|taiwan|korea|philippines|vietnam)\b/i],
+  ["MEA", /\b(emea|middle east|africa|israel|turkey|uae|dubai|nigeria|kenya|egypt)\b/i],
+];
+const EXPAND = {
+  "north america": ["US", "CA"], "americas": ["US", "CA", "LATAM"], "north/south america": ["US", "CA", "LATAM"],
+  "emea": ["UK", "EU", "MEA"],
+};
+const NAMES = { GLOBAL: "Anywhere", US: "United States", CA: "Canada", UK: "United Kingdom", EU: "Europe", LATAM: "Latin America", APAC: "Asia-Pacific", MEA: "Middle East / Africa" };
+
+function classify(loc) {
+  const s = (loc || "").trim();
+  const out = new Set();
+  for (const [k, v] of Object.entries(EXPAND)) if (s.toLowerCase().includes(k)) v.forEach(r => out.add(r));
+  for (const [region, re] of RULES) if (re.test(s)) out.add(region);
+  if (out.has("GLOBAL")) {
+    // "Remote Global (US, EU)" names its scope, so trust the names over the word "global"
+    if ([...out].some(r => r !== "GLOBAL")) out.delete("GLOBAL");
+  }
+  return [...out];
+}
+
+function verdict(regions, me) {
+  if (!regions.length) return "unclear";
+  if (regions.includes("GLOBAL") || regions.includes(me)) return "ok";
+  return "no";
+}
+
+const US = "(?:the )?(?:us|u\\.s\\.?|usa|united states)";
+const JD_RULES = [
+  ["US", new RegExp(`\\b(?:remote role within ${US}|(?:based|located|reside|residing|live) (?:in|within) ${US}|${US}[- ]based candidates|candidates based in ${US}|authori[sz](?:ed|ation) to work in ${US}|within ${US}|${US}[- ]only|${US} business hours|${US} time ?zones?)`, "i")],
+  ["CA", /\b(?:based|located|reside) in (?:the (?:us|u\.s\.) and )?canada|within canada|authori[sz](?:ed|ation) to work in canada\b/i],
+  ["UK", /\b(?:based|located|reside) in the uk|within the uk|right to work in the uk\b/i],
+  ["EU", /\b(?:based|located|reside) in (?:the )?(?:eu|europe)|within (?:the )?(?:eu|europe)|european time ?zones?\b/i],
+  ["LATAM", /\b(?:based|located) in latin america|within latam|latam time ?zones?\b/i],
+  ["AMERICAS_TZ", /\boverlap with (?:pacific|eastern|central|mountain) time|(?:pst|pt|est|et) hours\b/i],
+  ["GLOBAL", /\b(?:work from anywhere|anywhere in the world|hire (?:almost )?anywhere|remotely from multiple countries|fully remote,? worldwide|we hire globally|any time ?zone)\b/i],
+];
+const TZ_REGIONS = { AMERICAS_TZ: ["US", "CA", "LATAM"] };
+
+let JOBS = [], filter = "ok";
+
+async function load() {
+  const fn = document.getElementById("fn").value;
+  const list = document.getElementById("list");
+  list.innerHTML = '<div class="loading">Loading live roles from the speedrun jobs API…</div>';
+  const jobs = [];
+  for (let page = 1; page <= 30; page++) {
+    const q = new URLSearchParams({ wp: "remote", page, source: SRC });
+    if (fn) q.set("fn", fn);
+    const r = await fetch(`${API}/jobs?${q}`);
+    if (!r.ok) break;
+    const d = await r.json();
+    jobs.push(...d.jobs);
+    if (page >= d.total_pages) break;
+  }
+  JOBS = jobs.map(j => ({ ...j, regions: classify(j.location), evidence: null }));
+  render();
+}
+
+function render() {
+  const me = document.getElementById("where").value;
+  const spellings = new Map();
+  JOBS.forEach(j => { const k = (j.location || "(blank)").trim(); spellings.set(k, (spellings.get(k) || 0) + 1); });
+  const unclear = JOBS.filter(j => !j.regions.length).length;
+  const open = JOBS.filter(j => verdict(j.regions, me) === "ok").length;
+  document.getElementById("s-total").textContent = JOBS.length;
+  document.getElementById("s-spell").textContent = spellings.size;
+  document.getElementById("s-unclear").textContent = unclear;
+  document.getElementById("s-open").textContent = open;
+  document.getElementById("s-open-label").textContent = `clearly open to someone in ${NAMES[me]}`;
+  document.getElementById("p-spell").textContent = spellings.size;
+  document.getElementById("p-unclear").textContent = unclear;
+  document.getElementById("spellings").innerHTML = [...spellings.entries()].sort((a, b) => b[1] - a[1])
+    .map(([s, c]) => `<li>${esc(s)} <span>×${c}</span></li>`).join("");
+
+  const shown = JOBS.filter(j => filter === "all" || verdict(j.regions, me) === filter);
+  const list = document.getElementById("list");
+  if (!shown.length) { list.innerHTML = '<div class="loading">Nothing here.</div>'; return; }
+  list.innerHTML = shown.slice(0, 200).map(j => {
+    const v = verdict(j.regions, me);
+    const label = { ok: "Open to you", unclear: "Unclear", no: "Not open to you" }[v];
+    const chips = j.regions.map(r => `<span class="chip">${NAMES[r]}</span>`).join("");
+    const check = !j.regions.length && !j.evidence ? `<button class="check" data-id="${j.id}">Check the JD</button>` : "";
+    const ev = j.evidence ? `<div class="evidence">${j.evidence}</div>` : "";
+    return `<div class="row">
+      <div>
+        <a href="${j.url}" target="_blank" rel="noopener">${esc(j.title)}</a> <span class="co">· ${esc(j.company)}</span>
+        <div class="raw">location: "${esc(j.location || "")}"</div>
+        <div class="chips">${chips}</div>${check}${ev}
+      </div>
+      <span class="verdict v-${v}">${label}</span>
+    </div>`;
+  }).join("") + (shown.length > 200 ? `<div class="loading">…and ${shown.length - 200} more</div>` : "");
+}
+
+async function checkJD(id) {
+  const j = JOBS.find(x => x.id === id);
+  j.evidence = "Reading the job description…"; render();
+  try {
+    const r = await fetch(`${API}/jobs/${id}?source=${SRC}`);
+    const d = await r.json();
+    const text = (d.job || d).description_text || "";
+    const hits = [];
+    // "based in the US, UK and Canada" → hand the place list to the same location classifier
+    for (const m of text.matchAll(/\b(?:based|located|resid\w*|live|living|remote role|remotely|authori[sz](?:ed|ation) to work)\s+(?:in|within|from)\s+([^.;:\n]{2,80})/gi)) {
+      const places = classify(m[1]).filter(r => r !== "GLOBAL");
+      if (places.length) {
+        places.forEach(r => j.regions.push(r));
+        const i = m.index, snippet = text.slice(Math.max(0, i - 60), i + m[0].length + 40);
+        hits.push(`…${esc(snippet).replace(esc(m[0]), `<mark>${esc(m[0])}</mark>`)}…`);
+      }
+    }
+    for (const [region, re] of JD_RULES) {
+      const m = text.match(re);
+      if (m) {
+        (TZ_REGIONS[region] || [region]).forEach(r => j.regions.push(r));
+        const i = m.index, snippet = text.slice(Math.max(0, i - 80), i + m[0].length + 80);
+        hits.push(`…${esc(snippet).replace(esc(m[0]), `<mark>${esc(m[0])}</mark>`)}…`);
+      }
+    }
+    j.regions = [...new Set(j.regions)];
+    j.evidence = hits.length ? `From the JD: ${[...new Set(hits)].slice(0, 3).join("<br>")}` : "The JD doesn't say either. An LLM pass, or asking the company, would settle it.";
+  } catch (e) {
+    j.evidence = "Couldn't load the JD.";
+  }
+  render();
+}
+
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+
+document.getElementById("where").addEventListener("change", render);
+document.getElementById("fn").addEventListener("change", load);
+document.querySelectorAll(".tab").forEach(b => b.addEventListener("click", () => {
+  filter = b.dataset.filter;
+  document.querySelectorAll(".tab").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+  render();
+}));
+document.getElementById("list").addEventListener("click", e => {
+  const b = e.target.closest(".check"); if (b) checkJD(b.dataset.id);
+});
+load();
+</script>
+</body>
+</html>
